@@ -35,6 +35,7 @@ public class SimpleSerializer implements Serializer {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleSerializer.class);
 
+    @Override
     public XContentBuilder serialize(Event event) {
         XContentBuilder builder = null;
         try {
