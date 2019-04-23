@@ -77,7 +77,7 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 
     private AtomicBoolean shouldBackOff = new AtomicBoolean(false);
 
-    SinkCounter sinkCounter;
+    private SinkCounter sinkCounter;
 
     @Override
     public void configure(Context context) {

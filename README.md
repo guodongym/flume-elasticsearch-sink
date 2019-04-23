@@ -47,6 +47,7 @@ Example of agent named agent
 ````
   agent.channels = es_channel
   agent.sinks = es_sink
+  agent.sinks.es_sink.channel=es_channel
   agent.sinks.es_sink.type=com.cognitree.flume.sink.elasticsearch.ElasticSearchSink
   agent.sinks.es_sink.batchSize=2000
   agent.sinks.es_sink.es.bulkActions=5000

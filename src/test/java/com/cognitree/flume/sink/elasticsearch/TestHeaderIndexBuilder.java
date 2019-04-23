@@ -33,8 +33,6 @@ public class TestHeaderIndexBuilder {
 
     private String index = "es-index";
 
-    private String type = "es-type";
-
     private String id = "es-id";
 
     @Before
@@ -50,11 +48,9 @@ public class TestHeaderIndexBuilder {
         Event event = new SimpleEvent();
         Map<String, String> headers = new HashMap<>();
         headers.put(INDEX, index);
-        headers.put(TYPE, type);
         headers.put(ID, id);
         event.setHeaders(headers);
         assertEquals(index, headerBasedIndexBuilder.getIndex(event));
-        assertEquals(type, headerBasedIndexBuilder.getType(event));
         assertEquals(id, headerBasedIndexBuilder.getId(event));
     }
 
@@ -66,10 +62,8 @@ public class TestHeaderIndexBuilder {
         Event event = new SimpleEvent();
         Context context = new Context();
         context.put(ES_INDEX, index);
-        context.put(ES_TYPE, type);
         headerBasedIndexBuilder.configure(context);
         assertEquals(index, headerBasedIndexBuilder.getIndex(event));
-        assertEquals(type, headerBasedIndexBuilder.getType(event));
     }
 
     /**
@@ -79,6 +73,5 @@ public class TestHeaderIndexBuilder {
     public void testDefaultIndex() {
         Event event = new SimpleEvent();
         assertEquals(DEFAULT_ES_INDEX, headerBasedIndexBuilder.getIndex(event));
-        assertEquals(DEFAULT_ES_TYPE, headerBasedIndexBuilder.getType(event));
     }
 }
