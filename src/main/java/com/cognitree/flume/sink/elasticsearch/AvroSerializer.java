@@ -65,8 +65,7 @@ public class AvroSerializer implements Serializer {
                 logger.error("Schema File is not configured");
             }
         } catch (IOException e) {
-            logger.error("Exception in parsing avro format data but continuing serialization to process further records",
-                    e.getMessage(), e);
+            logger.error("Exception in parsing avro format data but continuing serialization to process further records", e);
         }
         return builder;
     }
@@ -82,7 +81,7 @@ public class AvroSerializer implements Serializer {
             Schema schema = new Schema.Parser().parse(new File(file));
             datumReader = new GenericDatumReader<>(schema);
         } catch (IOException e) {
-            logger.error("Error in parsing schema file ", e.getMessage(), e);
+            logger.error("Error in parsing schema file ", e);
             Throwables.propagate(e);
         }
     }

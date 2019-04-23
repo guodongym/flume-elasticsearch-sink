@@ -37,10 +37,12 @@ import static com.cognitree.flume.sink.elasticsearch.Constants.*;
 /**
  * This class creates  an instance of the {@link BulkProcessor}
  * Set the configuration for the BulkProcessor through {@link Context} object
+ *
+ * @author zhaogd
  */
-public class BulkProcessorBulider {
+public class BulkProcessorBuilder {
 
-    private static final Logger logger = LoggerFactory.getLogger(BulkProcessorBulider.class);
+    private static final Logger logger = LoggerFactory.getLogger(BulkProcessorBuilder.class);
 
     private String bulkProcessorName;
 
@@ -58,7 +60,8 @@ public class BulkProcessorBulider {
 
     private ElasticSearchSink elasticSearchSink;
 
-    public BulkProcessor buildBulkProcessor(Context context, ElasticSearchSink elasticSearchSink) {
+
+    public BulkProcessorBuilder(Context context, ElasticSearchSink elasticSearchSink) {
         this.elasticSearchSink = elasticSearchSink;
         bulkActions = context.getInteger(ES_BULK_ACTIONS,
                 DEFAULT_ES_BULK_ACTIONS);
@@ -74,17 +77,19 @@ public class BulkProcessorBulider {
                 DEFAULT_ES_BACKOFF_POLICY_START_DELAY);
         backoffPolicyRetries = context.getInteger(ES_BACKOFF_POLICY_RETRIES,
                 DEFAULT_ES_BACKOFF_POLICY_RETRIES);
-        return build(elasticSearchSink.getClient());
     }
 
-    private BulkProcessor build(final RestHighLevelClient client) {
-        logger.trace("Bulk processor name: [{}]  bulkActions: [{}], bulkSize: [{}], flush interval time: [{}]," +
+    public BulkProcessor build(final RestHighLevelClient client) {
+        logger.info("Bulk processor name: [{}]  bulkActions: [{}], bulkSize: [{}], flush interval time: [{}]," +
                         " concurrent Request: [{}], backoffPolicyTimeInterval: [{}], backoffPolicyRetries: [{}] ",
-                new Object[]{bulkProcessorName, bulkActions, bulkSize, flushIntervalTime,
-                        concurrentRequest, backoffPolicyTimeInterval, backoffPolicyRetries});
+                bulkProcessorName, bulkActions, bulkSize, flushIntervalTime,
+                concurrentRequest, backoffPolicyTimeInterval, backoffPolicyRetries);
+
+        // 构建异步客户端
         BiConsumer<BulkRequest, ActionListener<BulkResponse>> bulkConsumer =
-                (request, bulkListener) -> client
-                        .bulkAsync(request, RequestOptions.DEFAULT, bulkListener);
+                (request, bulkListener) -> client.bulkAsync(request, RequestOptions.DEFAULT, bulkListener);
+
+        // 构建批量处理器
         return BulkProcessor.builder(bulkConsumer, getListener())
                 .setBulkActions(bulkActions)
                 .setBulkSize(bulkSize)
@@ -100,27 +105,25 @@ public class BulkProcessorBulider {
     private BulkProcessor.Listener getListener() {
         return new BulkProcessor.Listener() {
             @Override
-            public void beforeBulk(long executionId,
-                                   BulkRequest request) {
-                logger.trace("Bulk Execution [" + executionId + "]\n" +
-                        "No of actions " + request.numberOfActions());
+            public void beforeBulk(long executionId, BulkRequest request) {
+                int numberOfActions = request.numberOfActions();
+                logger.info("Executing bulk [{}] with {} requests",
+                        executionId, numberOfActions);
             }
 
             @Override
-            public void afterBulk(long executionId,
-                                  BulkRequest request,
-                                  BulkResponse response) {
-                logger.trace("Bulk execution completed [" + executionId + "]\n" +
-                        "Took (ms): " + response.getTook().getMillis() + "\n" +
-                        "Failures: " + response.hasFailures() + "\n" +
-                        "Failures Message: " + response.buildFailureMessage() + "\n" +
-                        "Count: " + response.getItems().length);
+            public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+                if (response.hasFailures()) {
+                    logger.warn("Bulk [{}] executed with failures, Failures Message: {}",
+                            executionId, response.buildFailureMessage());
+                } else {
+                    logger.info("Bulk [{}] completed in {} milliseconds, Count [{}]",
+                            executionId, response.getTook().getMillis(), response.getItems().length);
+                }
             }
 
             @Override
-            public void afterBulk(long executionId,
-                                  BulkRequest request,
-                                  Throwable failure) {
+            public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
                 elasticSearchSink.assertConnection();
                 logger.error("Unable to send request to elasticsearch.", failure);
             }

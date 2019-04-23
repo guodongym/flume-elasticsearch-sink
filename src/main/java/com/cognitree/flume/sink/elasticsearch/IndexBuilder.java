@@ -22,21 +22,25 @@ import org.apache.flume.conf.Configurable;
  * Interface to select an index, type and id for each event.
  * A single instance of the class is created when the Sink initializes and is destroyed when the Sink is stopped.
  * Config params can be taken through Configurable
+ *
+ * @author zhaogd
  */
 public interface IndexBuilder extends Configurable {
 
+
     /**
-     * Returns name
+     * 动态获取index名称
+     *
+     * @param event event
+     * @return indexName
      */
     String getIndex(Event event);
 
     /**
-     * Returns Type
-     */
-    String getType(Event event);
-
-    /**
-     * Returns Id
+     * 动态获取ID
+     *
+     * @param event event
+     * @return id
      */
     String getId(Event event);
 }

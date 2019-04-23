@@ -15,9 +15,10 @@
  */
 package com.cognitree.flume.sink.elasticsearch;
 
-import com.cognitree.flume.sink.elasticsearch.client.BulkProcessorBulider;
+import com.cognitree.flume.sink.elasticsearch.client.BulkProcessorBuilder;
 import com.cognitree.flume.sink.elasticsearch.client.ElasticsearchClientBuilder;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import org.apache.commons.lang.ArrayUtils;
@@ -27,6 +28,7 @@ import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.Transaction;
 import org.apache.flume.conf.Configurable;
+import org.apache.flume.instrumentation.SinkCounter;
 import org.apache.flume.sink.AbstractSink;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.index.IndexRequest;
@@ -40,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.cognitree.flume.sink.elasticsearch.Constants.*;
@@ -49,12 +52,20 @@ import static com.cognitree.flume.sink.elasticsearch.Constants.*;
  * <p>
  * This sink must be configured with mandatory parameters detailed in
  * {@link Constants}
+ *
+ * @author zhaogd
  */
 public class ElasticSearchSink extends AbstractSink implements Configurable {
 
     private static final Logger logger = LoggerFactory.getLogger(ElasticSearchSink.class);
 
     private static final int CHECK_CONNECTION_PERIOD = 3000;
+
+    private long batchSize;
+
+    private ElasticsearchClientBuilder clientBuilder;
+
+    private BulkProcessorBuilder bulkProcessorBuilder;
 
     private BulkProcessor bulkProcessor;
 
@@ -66,23 +77,30 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 
     private AtomicBoolean shouldBackOff = new AtomicBoolean(false);
 
-    public RestHighLevelClient getClient() {
-        return client;
-    }
+    SinkCounter sinkCounter;
 
     @Override
     public void configure(Context context) {
-        String[] hosts = getHosts(context);
-        if (ArrayUtils.isNotEmpty(hosts)) {
-            client = new ElasticsearchClientBuilder(
-                    context.getString(PREFIX + ES_CLUSTER_NAME, DEFAULT_ES_CLUSTER_NAME), hosts)
-                    .build();
-            buildIndexBuilder(context);
-            buildSerializer(context);
-            bulkProcessor = new BulkProcessorBulider().buildBulkProcessor(context, this);
-        } else {
-            logger.error("Could not create Rest client, No host exist");
-        }
+        final String hostString = context.getString(ES_HOSTS);
+        Preconditions.checkNotNull(hostString,
+                "es.client.hosts cannot be empty, please specify in configuration file");
+
+        String[] hosts = hostString.split(COMMA);
+        Preconditions.checkArgument(ArrayUtils.isNotEmpty(hosts),
+                "es.client.hosts cannot be empty, please specify in configuration file");
+
+        batchSize = context.getLong(CONFIG_BATCHSIZE, 1000L);
+
+        final String clusterName = context.getString(PREFIX + ES_CLUSTER_NAME, DEFAULT_ES_CLUSTER_NAME);
+
+        clientBuilder = new ElasticsearchClientBuilder(clusterName, hosts);
+        bulkProcessorBuilder = new BulkProcessorBuilder(context, this);
+
+        buildIndexBuilder(context);
+        buildSerializer(context);
+
+        // 实例化计数器
+        sinkCounter = new SinkCounter(this.getName());
     }
 
     @Override
@@ -92,33 +110,52 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
         }
         Channel channel = getChannel();
         Transaction txn = channel.getTransaction();
-        txn.begin();
         try {
-            Event event = channel.take();
-            if (event != null) {
-                String body = new String(event.getBody(), Charsets.UTF_8);
-                if (!Strings.isNullOrEmpty(body)) {
-                    logger.debug("start to sink event [{}].", body);
-                    String index = indexBuilder.getIndex(event);
-                    String type = indexBuilder.getType(event);
-                    String id = indexBuilder.getId(event);
-                    XContentBuilder xContentBuilder = serializer.serialize(event);
-                    if (xContentBuilder != null) {
-                        if (!(Strings.isNullOrEmpty(id))) {
-                            bulkProcessor.add(new IndexRequest(index, type, id)
-                                    .source(xContentBuilder));
-                        } else {
-                            bulkProcessor.add(new IndexRequest(index, type)
-                                    .source(xContentBuilder));
-                        }
+            txn.begin();
+            // 循环处理达到批次大小开始提交
+            long i = 0;
+            for (; i < batchSize; i++) {
+                Event event = channel.take();
+                if (event == null) {
+                    if (i == 0) {
+                        sinkCounter.incrementBatchEmptyCount();
+                        return Status.BACKOFF;
                     } else {
-                        logger.error("Could not serialize the event body [{}] for index [{}], type[{}] and id [{}] ",
-                                new Object[]{body, index, type, id});
+                        sinkCounter.incrementBatchUnderflowCount();
                     }
+                    break;
+                }
+                String body = new String(event.getBody(), Charsets.UTF_8);
+                if (Strings.isNullOrEmpty(body)) {
+                    logger.warn("body is null or empty");
+                    continue;
+                }
+
+                logger.debug("start to sink event [{}].", body);
+                String index = indexBuilder.getIndex(event);
+                String id = indexBuilder.getId(event);
+
+                XContentBuilder xContentBuilder = serializer.serialize(event);
+                if (xContentBuilder == null) {
+                    logger.error("Could not serialize the event body [{}] for index [{}], id [{}] ", body, index, id);
+                    continue;
+                }
+
+                if (Strings.isNullOrEmpty(id)) {
+                    bulkProcessor.add(new IndexRequest(index).source(xContentBuilder));
+                } else {
+                    bulkProcessor.add(new IndexRequest(index).id(id).source(xContentBuilder));
                 }
                 logger.debug("sink event [{}] successfully.", body);
             }
+
+            if (i == batchSize) {
+                sinkCounter.incrementBatchCompleteCount();
+            }
+            sinkCounter.addToEventDrainAttemptCount(i);
+
             txn.commit();
+            sinkCounter.addToEventDrainSuccessCount(i);
             return Status.READY;
         } catch (Throwable tx) {
             try {
@@ -134,10 +171,36 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
     }
 
     @Override
-    public void stop() {
+    public synchronized void start() {
+        client = clientBuilder.build();
+        bulkProcessor = bulkProcessorBuilder.build(client);
+
+        super.start();
+        sinkCounter.incrementConnectionCreatedCount();
+        sinkCounter.start();
+    }
+
+    @Override
+    public synchronized void stop() {
         if (bulkProcessor != null) {
-            bulkProcessor.close();
+            bulkProcessor.flush();
+            try {
+                bulkProcessor.awaitClose(5, TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                logger.error("bulkProcessor 关闭异常", e);
+            }
         }
+        if (client != null) {
+            try {
+                client.close();
+            } catch (IOException e) {
+                logger.error("client 关闭异常", e);
+            }
+        }
+
+        sinkCounter.incrementConnectionClosedCount();
+        sinkCounter.stop();
+        super.stop();
     }
 
     /**
@@ -178,17 +241,6 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
             Throwables.propagate(e);
             return null;
         }
-    }
-
-    /**
-     * returns hosts
-     */
-    private String[] getHosts(Context context) {
-        String[] hosts = null;
-        if (StringUtils.isNotBlank(context.getString(ES_HOSTS))) {
-            hosts = context.getString(ES_HOSTS).split(",");
-        }
-        return hosts;
     }
 
     /**

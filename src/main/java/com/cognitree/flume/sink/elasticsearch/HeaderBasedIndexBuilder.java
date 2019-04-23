@@ -24,6 +24,8 @@ import static com.cognitree.flume.sink.elasticsearch.Constants.*;
 
 /**
  * This class create the index type and Id based on header
+ *
+ * @author zhaogd
  */
 public class HeaderBasedIndexBuilder extends StaticIndexBuilder {
 
@@ -40,21 +42,6 @@ public class HeaderBasedIndexBuilder extends StaticIndexBuilder {
             index = super.getIndex(event);
         }
         return index;
-    }
-
-    /**
-     * Returns the index type from the headers
-     */
-    @Override
-    public String getType(Event event) {
-        Map<String, String> headers = event.getHeaders();
-        String type;
-        if (headers.get(TYPE) != null) {
-            type = headers.get(TYPE);
-        } else {
-            type = super.getType(event);
-        }
-        return type;
     }
 
     /**

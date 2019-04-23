@@ -17,6 +17,8 @@ package com.cognitree.flume.sink.elasticsearch;
 
 /**
  * Class to configure properties and defaults
+ *
+ * @author zhaogd
  */
 public class Constants {
 
@@ -27,11 +29,10 @@ public class Constants {
     public static final String PREFIX = "es.";
 
     public static final String INDEX = "index";
-    public static final String TYPE = "type";
     public static final String ID = "id";
 
     public static final String ES_BULK_ACTIONS = "es.bulkActions";
-    public static final Integer DEFAULT_ES_BULK_ACTIONS = 1000;
+    public static final Integer DEFAULT_ES_BULK_ACTIONS = 10000;
 
     public static final String ES_BULK_SIZE = "es.bulkSize";
     public static final String ES_BULK_SIZE_UNIT = "es.bulkSize.unit";
@@ -55,9 +56,6 @@ public class Constants {
     public static final String ES_INDEX = "es.index";
     public static final String DEFAULT_ES_INDEX = "default";
 
-    public static final String ES_TYPE = "es.type";
-    public static final String DEFAULT_ES_TYPE = "default";
-
     public static final String ES_INDEX_BUILDER = "es.index.builder";
     public static final String DEFAULT_ES_INDEX_BUILDER = "com.cognitree.flume.sink.elasticsearch.StaticIndexBuilder";
 
@@ -70,7 +68,7 @@ public class Constants {
 
     public static final String ES_HOSTS = "es.client.hosts";
 
-    public static final Integer DEFAULT_ES_PORT = 9300;
+    public static final Integer DEFAULT_ES_PORT = 9200;
 
     public static final String ES_CSV_FIELDS = "es.serializer.csv.fields";
     public static final String ES_CSV_DELIMITER = "es.serializer.csv.delimiter";
@@ -79,14 +77,31 @@ public class Constants {
     public static final String ES_AVRO_SCHEMA_FILE = "es.serializer.avro.schema.file";
 
     /**
+     * 单个事务批次大小
+     */
+    static final String CONFIG_BATCHSIZE = "batchSize";
+
+    /**
      * This enum is used for the time unit
      * <p>
      * Time unit can be in Second, Minute or Mili second
      */
     public enum UnitEnum {
+        /**
+         * 秒
+         */
         SECOND("s"),
+        /**
+         * 分钟
+         */
         MINUTE("m"),
-        MILI_SECOND("M"),
+        /**
+         * 毫秒
+         */
+        MILLI_SECOND("M"),
+        /**
+         * 未知
+         */
         UNKNOWN("unknown");
 
         private String unit;
@@ -116,7 +131,13 @@ public class Constants {
      * Unit can be in Mega byte or kilo byte
      */
     public enum ByteSizeEnum {
+        /**
+         * 兆字节
+         */
         MB("mb"),
+        /**
+         * 千字节
+         */
         KB("kb");
 
         private String byteSizeUnit;
@@ -135,9 +156,21 @@ public class Constants {
      * Enum for field type
      */
     public enum FieldTypeEnum {
+        /**
+         * 字符串
+         */
         STRING("string"),
+        /**
+         * 整型
+         */
         INT("int"),
+        /**
+         * 浮点数
+         */
         FLOAT("float"),
+        /**
+         * 布尔值
+         */
         BOOLEAN("boolean");
 
         private String fieldType;

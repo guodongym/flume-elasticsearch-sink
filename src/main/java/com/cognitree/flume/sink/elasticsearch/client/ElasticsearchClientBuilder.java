@@ -15,15 +15,13 @@
  */
 package com.cognitree.flume.sink.elasticsearch.client;
 
+import com.cognitree.flume.sink.elasticsearch.Constants;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +30,8 @@ import static com.cognitree.flume.sink.elasticsearch.Constants.DEFAULT_ES_PORT;
 /**
  * This class creates  an instance of the {@link RestHighLevelClient}
  * Set the hosts for the client
+ *
+ * @author zhaogd
  */
 public class ElasticsearchClientBuilder {
 
@@ -39,39 +39,25 @@ public class ElasticsearchClientBuilder {
 
     private String clusterName;
 
-    private List<TransportAddress> transportAddresses;
+    private List<HttpHost> httpHosts;
 
-    public ElasticsearchClientBuilder(String clusterName, String[] hostnames) {
+    public ElasticsearchClientBuilder(String clusterName, String[] hostNames) {
         this.clusterName = clusterName;
-        setTransportAddresses(hostnames);
+        setHttpHosts(hostNames);
+    }
+
+    private void setHttpHosts(String[] hostNames) {
+        this.httpHosts = new ArrayList<>(hostNames.length);
+        for (String hostName : hostNames) {
+            String[] hostDetails = hostName.split(Constants.COLONS);
+            String address = hostDetails[0];
+            int port = hostDetails.length > 1 ? Integer.parseInt(hostDetails[1]) : DEFAULT_ES_PORT;
+            httpHosts.add(new HttpHost(address, port));
+        }
     }
 
     public RestHighLevelClient build() {
-        RestHighLevelClient client;
-        HttpHost[] hosts = new HttpHost[transportAddresses.size()];
-        int i = 0;
-        logger.trace("Cluster Name: [{}], HostName: [{}] ",
-                new Object[]{clusterName, transportAddresses});
-        for (TransportAddress transportAddress : transportAddresses) {
-            hosts[i++] = new HttpHost(transportAddress.address().getAddress(),
-                    transportAddress.address().getPort(), "http");
-        }
-        client = new RestHighLevelClient(RestClient.builder(hosts));
-        return client;
-    }
-
-    private void setTransportAddresses(String[] transportAddresses) {
-        try {
-            this.transportAddresses = new ArrayList<>(transportAddresses.length);
-            for (String transportAddress : transportAddresses) {
-                String[] hostDetails = transportAddress.split(":");
-                String hostName = hostDetails[0];
-                Integer port = hostDetails.length > 1 ?
-                        Integer.parseInt(hostDetails[1]) : DEFAULT_ES_PORT;
-                this.transportAddresses.add(new TransportAddress(InetAddress.getByName(hostName), port));
-            }
-        } catch (UnknownHostException e) {
-            logger.error("Error in creating the TransportAddress for elasticsearch " + e.getMessage(), e);
-        }
+        logger.info("Cluster Name: [{}], HostName: [{}] ", clusterName, httpHosts);
+        return new RestHighLevelClient(RestClient.builder(httpHosts.toArray(new HttpHost[]{})));
     }
 }

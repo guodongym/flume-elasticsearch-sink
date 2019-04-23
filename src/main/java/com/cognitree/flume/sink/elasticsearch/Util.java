@@ -41,7 +41,7 @@ public class Util {
         String timeInterval = interval != null ? interval : defaultValue;
         logger.trace("Time interval is [{}] ", timeInterval);
         if (timeInterval != null) {
-            Integer time = Integer.valueOf(timeInterval.substring(0, timeInterval.length() - 1));
+            int time = Integer.parseInt(timeInterval.substring(0, timeInterval.length() - 1));
             String unit = timeInterval.substring(timeInterval.length() - 1);
             UnitEnum unitEnum = UnitEnum.fromString(unit);
             switch (unitEnum) {
@@ -51,7 +51,7 @@ public class Util {
                 case SECOND:
                     timeValue = TimeValue.timeValueSeconds(time);
                     break;
-                case MILI_SECOND:
+                case MILLI_SECOND:
                     timeValue = TimeValue.timeValueMillis(time);
                     break;
                 default:

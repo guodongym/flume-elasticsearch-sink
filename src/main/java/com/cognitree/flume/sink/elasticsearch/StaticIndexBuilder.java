@@ -24,14 +24,14 @@ import static com.cognitree.flume.sink.elasticsearch.Constants.*;
 
 /**
  * This class creates the index type and Id based on static fields
+ *
+ * @author zhaogd
  */
 public class StaticIndexBuilder implements IndexBuilder {
 
     private static final Logger logger = LoggerFactory.getLogger(StaticIndexBuilder.class);
 
     private String index;
-
-    private String type;
 
     @Override
     public String getIndex(Event event) {
@@ -45,17 +45,6 @@ public class StaticIndexBuilder implements IndexBuilder {
     }
 
     @Override
-    public String getType(Event event) {
-        String type;
-        if (this.type != null) {
-            type = this.type;
-        } else {
-            type = DEFAULT_ES_TYPE;
-        }
-        return type;
-    }
-
-    @Override
     public String getId(Event event) {
         return null;
     }
@@ -63,9 +52,6 @@ public class StaticIndexBuilder implements IndexBuilder {
     @Override
     public void configure(Context context) {
         this.index = Util.getContextValue(context, ES_INDEX);
-        this.type = Util.getContextValue(context, ES_TYPE);
-        logger.info("Simple Index builder, name [{}] type [{}] ",
-                new Object[]{this.index, this.type});
-
+        logger.info("Simple Index builder, index [{}]", this.index);
     }
 }

@@ -24,9 +24,10 @@ Required properties are in bold.
 |--------------------------------------------|--------------|:----------------------------------------------------------------------------------------------|
 | **channel**                                | -              |                                                                                               |
 | **type**                                   | -              | The component type name, has to be com.cognitree.flume.sink.elasticsearch.ElasticSearchSink   |
+| **batchSize**                              | 1000           | Single transaction batch size                                                                 |
 | **es.cluster.name**                        | elasticsearch  | Name of the elasticsearch cluster to connect to                                               |
-| **es.client.hosts**                        | -              | Comma separated hostname:port pairs ex: host1:9300,host2:9300. The default port is 9300       |
-| es.bulkActions                             | 1000           | The number of actions to batch into a request                                                 |
+| **es.client.hosts**                        | -              | Comma separated hostname:port pairs ex: host1:9200,host2:9200. The default port is 9200       |
+| es.bulkActions                             | 10000          | The number of actions to batch into a request                                                 |
 | es.bulkProcessor.name                      | flume          | Name of the bulk processor                                                                    |
 | es.bulkSize                                | 5              | Flush the bulk request every mentioned size                                                   |
 | es.bulkSize.unit                           | MB             | Bulk request unit, supported values are KB and MB                                             |
@@ -35,7 +36,6 @@ Required properties are in bold.
 | es.backoff.policy.time.interval            | 50M            | Backoff policy time interval, wait initially for the 50 miliseconds                           |
 | es.backoff.policy.retries                  | 8              | Number of backoff policy retries                                                              |
 | es.index                                   | default        | Index name to be used to store the documents                                                  |
-| es.type                                    | default        | Type to be used to store the documents                                                        |
 | es.index.builder                           |com.cognitree.<br>flume.sink.<br>elasticsearch.<br>StaticIndexBuilder          | Implementation of com.cognitree.flume.sink.elasticsearch.IndexBuilder interface |
 | es.serializer                              |com.cognitree.<br>flume.sink.<br>elasticsearch.<br>SimpleSerializer            | Implementation of com.cognitree.flume.sink.elasticsearch.Serializer interface |
 | es.serializer.csv.fields                   | -              | Comma separated csv field name with data type i.e. column1:type1,column2:type2, Supported data types are string, boolean, int and float |
@@ -48,16 +48,17 @@ Example of agent named agent
   agent.channels = es_channel
   agent.sinks = es_sink
   agent.sinks.es_sink.type=com.cognitree.flume.sink.elasticsearch.ElasticSearchSink
-  agent.sinks.es_sink.es.bulkActions=5
+  agent.sinks.es_sink.batchSize=2000
+  agent.sinks.es_sink.es.bulkActions=5000
   agent.sinks.es_sink.es.bulkProcessor.name=bulkprocessor
   agent.sinks.es_sink.es.bulkSize=5
   agent.sinks.es_sink.es.bulkSize.unit=MB
   agent.sinks.es_sink.es.concurrent.request=1
-  agent.sinks.es_sink.es.flush.interval.time=5m
+  agent.sinks.es_sink.es.flush.interval.time=10s
   agent.sinks.es_sink.es.backoff.policy.time.interval=50M
   agent.sinks.es_sink.es.backoff.policy.retries=8
   agent.sinks.es_sink.es.cluster.name=es-cluster
-  agent.sinks.es_sink.es.client.hosts=127.0.0.1:9300
+  agent.sinks.es_sink.es.client.hosts=127.0.0.1:9200
   agent.sinks.es_sink.es.index=defaultindex
   agent.sinks.es_sink.es.index.builder=com.cognitree.flume.sink.elasticsearch.HeaderBasedIndexBuilder
   agent.sinks.es_sink.es.serializer=com.cognitree.flume.sink.elasticsearch.SimpleSerializer
