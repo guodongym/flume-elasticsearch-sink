@@ -16,6 +16,12 @@ Follow these steps to use this sink in Apache flume:
 
 * Extract the file into the flume installation directories plugin.d folder.
 
+* 如果是CDH环境的Flume(CDH5.16.1)需要删除/opt/cloudera/parcels/CDH/lib/flume-ng/lib文件夹中以下jar包，否则会出现jar包冲突程序无法启动
+    
+    httpclient-4.2.5.jar  
+    httpcore-4.2.5.jar  
+    jackson-core-2.3.1.jar  
+    
 * Configure the sink in the flume configuration file with properties as below
 
 Required properties are in bold.

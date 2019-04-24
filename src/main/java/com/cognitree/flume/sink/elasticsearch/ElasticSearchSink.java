@@ -23,10 +23,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.flume.Channel;
-import org.apache.flume.Context;
-import org.apache.flume.Event;
-import org.apache.flume.Transaction;
+import org.apache.flume.*;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.instrumentation.SinkCounter;
 import org.apache.flume.sink.AbstractSink;
@@ -104,7 +101,8 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
     }
 
     @Override
-    public Status process() {
+    public Status process() throws EventDeliveryException {
+        Status status = Status.READY;
         if (shouldBackOff.get()) {
             throw new NoNodeAvailableException("Check whether Elasticsearch is down or not.");
         }
@@ -119,7 +117,7 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
                 if (event == null) {
                     if (i == 0) {
                         sinkCounter.incrementBatchEmptyCount();
-                        return Status.BACKOFF;
+                        status = Status.BACKOFF;
                     } else {
                         sinkCounter.incrementBatchUnderflowCount();
                     }
@@ -156,7 +154,6 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
 
             txn.commit();
             sinkCounter.addToEventDrainSuccessCount(i);
-            return Status.READY;
         } catch (Throwable tx) {
             try {
                 txn.rollback();
@@ -164,10 +161,11 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
                 logger.error("exception in rollback.", ex);
             }
             logger.error("transaction rolled back.", tx);
-            return Status.BACKOFF;
+            throw new EventDeliveryException("Failed to commit transaction. Transaction rolled back.", tx);
         } finally {
             txn.close();
         }
+        return status;
     }
 
     @Override
