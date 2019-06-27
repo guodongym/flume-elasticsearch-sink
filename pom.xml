@@ -22,7 +22,7 @@
     <groupId>com.bitnei.bigdata.flume.flume-ng-sinks</groupId>
     <artifactId>flume-ng-elasticsearch-sink</artifactId>
     <name>Flume NG ElasticSearch Sink</name>
-    <version>2.1.2-RELEASE</version>
+    <version>2.2.0-RELEASE</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

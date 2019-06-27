@@ -50,6 +50,11 @@ public class StaticIndexBuilder implements IndexBuilder {
     }
 
     @Override
+    public ActionTypeEnum getActionType(Event event) {
+        return ActionTypeEnum.INSERT;
+    }
+
+    @Override
     public void configure(Context context) {
         this.index = Util.getContextValue(context, ES_INDEX);
         logger.info("Simple Index builder, index [{}]", this.index);

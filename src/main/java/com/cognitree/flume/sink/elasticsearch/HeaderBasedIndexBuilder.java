@@ -15,6 +15,7 @@
  */
 package com.cognitree.flume.sink.elasticsearch;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 
@@ -51,6 +52,19 @@ public class HeaderBasedIndexBuilder extends StaticIndexBuilder {
     public String getId(Event event) {
         Map<String, String> headers = event.getHeaders();
         return headers.get(ID);
+    }
+
+    /**
+     * 返回处理类型
+     */
+    @Override
+    public ActionTypeEnum getActionType(Event event) {
+        Map<String, String> headers = event.getHeaders();
+        final String type = headers.get(ACTION);
+        if (StringUtils.isBlank(type)) {
+            return super.getActionType(event);
+        }
+        return ActionTypeEnum.fromString(type);
     }
 
     @Override

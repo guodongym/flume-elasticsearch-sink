@@ -30,6 +30,7 @@ public class Constants {
 
     public static final String INDEX = "index";
     public static final String ID = "id";
+    public static final String ACTION = "action";
 
     public static final String ES_BULK_ACTIONS = "es.bulkActions";
     public static final Integer DEFAULT_ES_BULK_ACTIONS = 10000;
@@ -80,6 +81,39 @@ public class Constants {
      * 单个事务批次大小
      */
     static final String CONFIG_BATCHSIZE = "batchSize";
+
+    /**
+     * 执行类型，用于区分对es的插入、更新、删除操作
+     */
+    public enum ActionTypeEnum {
+        /**
+         * 插入
+         */
+        INSERT("1"),
+        /**
+         * 更新
+         */
+        UPDATE("3"),
+        /**
+         * 删除
+         */
+        DELETE("-1");
+
+        private String type;
+
+        ActionTypeEnum(String type) {
+            this.type = type;
+        }
+
+        public static ActionTypeEnum fromString(String type) {
+            for (ActionTypeEnum typeEnum : ActionTypeEnum.values()) {
+                if (typeEnum.type.equals(type)) {
+                    return typeEnum;
+                }
+            }
+            return INSERT;
+        }
+    }
 
     /**
      * This enum is used for the time unit

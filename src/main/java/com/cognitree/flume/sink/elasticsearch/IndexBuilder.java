@@ -43,4 +43,12 @@ public interface IndexBuilder extends Configurable {
      * @return id
      */
     String getId(Event event);
+
+    /**
+     * 返回处理类型
+     *
+     * @param event event
+     * @return {@link com.cognitree.flume.sink.elasticsearch.Constants.ActionTypeEnum}
+     */
+    Constants.ActionTypeEnum getActionType(Event event);
 }

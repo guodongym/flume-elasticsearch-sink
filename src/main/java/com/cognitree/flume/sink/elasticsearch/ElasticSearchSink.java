@@ -28,7 +28,9 @@ import org.apache.flume.conf.Configurable;
 import org.apache.flume.instrumentation.SinkCounter;
 import org.apache.flume.sink.AbstractSink;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
@@ -132,6 +134,7 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
                 logger.debug("start to sink event [{}].", body);
                 String index = indexBuilder.getIndex(event);
                 String id = indexBuilder.getId(event);
+                final ActionTypeEnum actionType = indexBuilder.getActionType(event);
 
                 XContentBuilder xContentBuilder = serializer.serialize(event);
                 if (xContentBuilder == null) {
@@ -139,11 +142,38 @@ public class ElasticSearchSink extends AbstractSink implements Configurable {
                     continue;
                 }
 
-                if (Strings.isNullOrEmpty(id)) {
-                    bulkProcessor.add(new IndexRequest(index).source(xContentBuilder));
-                } else {
-                    bulkProcessor.add(new IndexRequest(index).id(id).source(xContentBuilder));
+                switch (actionType) {
+                    case INSERT:
+                        if (Strings.isNullOrEmpty(id)) {
+                            bulkProcessor.add(new IndexRequest(index).source(xContentBuilder));
+                        } else {
+                            bulkProcessor.add(new IndexRequest(index).id(id).source(xContentBuilder));
+                        }
+                        break;
+                    case UPDATE:
+                        if (Strings.isNullOrEmpty(id)) {
+                            logger.warn("更新操作id不能为空");
+                        } else {
+                            final UpdateRequest updateRequest = new UpdateRequest();
+                            updateRequest.index(index)
+                                    .id(id)
+                                    .doc(xContentBuilder)
+                                    .docAsUpsert(false)
+                                    .retryOnConflict(5);
+                            bulkProcessor.add(updateRequest);
+                        }
+                        break;
+                    case DELETE:
+                        if (Strings.isNullOrEmpty(id)) {
+                            logger.warn("删除操作id不能为空");
+                        } else {
+                            bulkProcessor.add(new DeleteRequest(index).id(id));
+                        }
+                    default:
+                        logger.warn("actionType未识别，[{}]", actionType);
+                        break;
                 }
+
                 logger.debug("sink event [{}] successfully.", body);
             }
 
